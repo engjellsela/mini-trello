@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "~/supabaseClient";
 import type { User } from "@supabase/supabase-js";
+import { Button } from "~/components/ui/button";
+import { Link } from "react-router";
 
 type DashboardProps = {
     user: User;
@@ -73,32 +75,43 @@ export function Dashboard({user}: DashboardProps) {
 
     if (loading) return <p>Loading...</p>
 
+    console.log(projectInvites)
+
     return (
-        <div>
-            <p>Dashboard Page</p>
-
-            <button onClick={createProject}>New project</button>
-
-            <div className="my-5">
-                <p>Your project invites: </p>
-                {projectInvites.map(invite => {
-                    return (
-                        <div className="my-2 bg-blue-100">
-                            <p>Project name: {invite.projects?.name}</p>
-                            <button onClick={() => acceptProjectInvite(invite.id)}>Accept</button>
-                        </div>
-                    )
-                })}
+        <div className="min-h-screen bg-gray-100">
+            <div className="p-5 bg-black text-white">
+                <p>Dashboard Page</p>
             </div>
 
-            <div>
-                <p>YOUR WORKSPACES</p>
+            <div className="flex-row bg-gray-400 p-2">
+                <Button size="lg" onClick={createProject}>New project</Button>
+            </div>
+
+
+            <div className="my-5">
+                {projectInvites.length > 0 && (
+                    <div>
+                        <p>Your project invites:</p>
+
+                        {projectInvites.map((invite) => (
+                            <div key={invite.id} className="my-2 bg-blue-100">
+                            <p>Project name: {invite.projects?.name}</p>
+                            <Button onClick={() => acceptProjectInvite(invite.id)}>Accept</Button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="p-4">
+                <p className="font-semibold">YOUR WORKSPACES</p>
                 {projects?.map(project => {
                     return (
-                        <div className="bg-gray-200 p-2">
-                            <p>Project name: {project.name}</p>
-                            <p>project id: {project.id}</p>
-                        </div>
+                        <Link to={`/project/${project.id}`}>
+                            <div className="bg-white border p-5 my-5 hover:bg-gray-50 hover:border-black">
+                                <p className="font-medium">{project.name}</p>
+                            </div>
+                        </Link>
                     )
                 })}
             </div>

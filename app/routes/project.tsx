@@ -100,8 +100,12 @@ export default function Project({ params }: Route.ComponentProps) {
     .from('tasks')
     .insert({ name: name, description: description, status: status, assignedTo: assignedTo, projectID: params.id })
     .select()
-    if (error) console.log(error)
-    else console.log(data)
+    .single()
+    if (error) {
+      alert(error.message)
+      return;
+    }
+    else setTasks((currentTasks) => [...currentTasks, data])
   };
 
   const editTask = async (id: string, name: string, description: string, status: string) => {
@@ -110,8 +114,32 @@ export default function Project({ params }: Route.ComponentProps) {
     .update({ name: name, description: description, status: status })
     .eq('id', id)
     .select()
-    if (error) console.log(error)
-    else console.log(data)
+    if (error) { 
+      alert(error.message)
+      return;
+    }
+    else {
+      setTasks((currentTasks) =>
+        currentTasks.map((task) =>
+          task.id === id
+            ? { ...task, name, description, status }
+            : task
+        )
+      );
+    }
+  };
+
+  const deleteTask = async (id: string) => {
+    const { data, error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('id', id)
+    .select()
+    if (error) {
+      alert(error.message);
+      return;
+    }
+    else setTasks((currentTasks) => currentTasks.filter((task) => task.id !== id));
   };
 
   if (isLoading) return <p>Loading...</p>;
@@ -131,7 +159,7 @@ export default function Project({ params }: Route.ComponentProps) {
         <Button size="lg" onClick={() => createTask("login page", "create new login page", "In progress", "a152e53d-2a7d-4bee-bbfe-7387b3e92818")} className="m-2">Create task</Button>
       </div>
 
-      <div className="p-4 bg-gray-100">
+      <div className="p-4">
         {tasks.map((task) => {
           return (
               <div key={task.id} className="bg-white border p-5 my-5">
@@ -139,7 +167,8 @@ export default function Project({ params }: Route.ComponentProps) {
                 <p>description: {task.description}</p>
                 <p>status: {task.status}</p>
                 <p>Assigned to: {task.accounts?.email}</p>
-                <button onClick={() => editTask(task.id, "sign up page", "this is my new sign up page", "in progress")}>Edit Task</button>
+                <Button onClick={() => editTask(task.id, "hlelo world", "hello wrold 123", "in progress")}>Edit Task</Button>
+                <Button onClick={() => deleteTask(task.id)}>Delete Task</Button>
               </div>
             );
         })}
