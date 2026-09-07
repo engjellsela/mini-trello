@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Route } from "./+types/home";
 import { supabase } from "../supabaseClient";
 import type { User } from "@supabase/supabase-js";
-import { SignUp } from "../auth/signup";
+import SignUp from "../auth/signup";
 import { Dashboard } from "~/dashboard/Dashboard";
 
 export function meta({}: Route.MetaArgs) {

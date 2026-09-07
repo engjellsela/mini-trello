@@ -9,7 +9,7 @@ export default function HandleAuth() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
-        navigate("/");
+        navigate("/", { replace: true });
       }
 
       setCheckAuth(false);

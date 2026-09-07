@@ -3,6 +3,20 @@ import type { Route } from "./+types/project";
 import { supabase } from "../supabaseClient";
 import { useNavigate } from "react-router";
 import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter,
+  DialogClose
+} from "~/components/ui/dialog";
+import { Field, FieldGroup } from "~/components/ui/field";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { Link } from "react-router";
 
 type Project = {
   id: string;
@@ -24,11 +38,24 @@ type Task = {
   };
 };
 
+type NewTask = {
+  name: string;
+  description: string;
+  status: string;
+  assignedTo: string | null;
+};
+
 export default function Project({ params }: Route.ComponentProps) {
   const [project, setProject] = useState<Project>();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState(project?.name ?? '');
+  const [memberEmail, setMemberEmail] = useState('');
+  const [newTask, setNewTask] = useState<NewTask>({name: '', description: '', status: '', assignedTo: ''});
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
 
   const navigate = useNavigate();
 
@@ -57,14 +84,23 @@ export default function Project({ params }: Route.ComponentProps) {
     setIsLoading(false);
   }, [params.id]);
 
-  const editProjectName = async (name: string) => {
+  useEffect(() => {
+    setProjectName(project?.name ?? '');
+  }, [project?.name]);
+
+  const editProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     const { data, error } = await supabase
     .from('projects')
-    .update({ name: name })
+    .update({ name: projectName })
     .eq('id', project?.id)
     .select()
     if (error) console.log(error)
-    else setProject(data[0])
+    else {
+      setProject(data[0]);
+      setIsEditOpen(false);
+    }
   };
 
   const deleteProject = async () => {
@@ -76,36 +112,46 @@ export default function Project({ params }: Route.ComponentProps) {
     else navigate("/");
   };
 
-  const inviteMember = async (email: string) => {
+  const inviteMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     const { data, error } = await supabase
     .from('accounts')
     .select('id, email')
-    .eq('email', email)
+    .eq('email', memberEmail)
     if (error) alert(error?.message)
     
     if (!project?.id || !data?.[0]?.id) {
-      console.log("Missing project or account");
-      return;
+      alert("Missing project or account");
+      setIsInviteOpen(false);
     }
 
     const { data: member, error: memberError } = await supabase
     .from('members')
     .insert({ projectID: project?.id, userID: data[0]?.id })
     if (memberError) alert(memberError?.message)  
-    else alert("Invite sent successfully.")
+    else {
+      alert("Invite sent successfully.");
+      setIsInviteOpen(false);
+    }
   };
 
-  const createTask = async (name: string, description: string, status: string, assignedTo: string) => {
+  const createTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     const { data, error } = await supabase
     .from('tasks')
-    .insert({ name: name, description: description, status: status, assignedTo: assignedTo, projectID: params.id })
+    .insert({ projectID: project?.id, name: newTask.name, description: newTask.description, status: newTask.status, assignedTo: newTask.assignedTo === '' ? null : newTask.assignedTo })
     .select()
     .single()
     if (error) {
       alert(error.message)
       return;
+    } else {
+      alert("Task created succesfully.");
+      setTasks((currentTasks) => [...currentTasks, data]);
+      setIsNewTaskOpen(false);
     }
-    else setTasks((currentTasks) => [...currentTasks, data])
   };
 
   const editTask = async (id: string, name: string, description: string, status: string) => {
@@ -148,18 +194,106 @@ export default function Project({ params }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="p-5 bg-black text-white">
-        <p>{project?.name}</p>
+      <div className="p-5 bg-black text-white flex justify-between">
+        <Link to="/"><Button variant="link" className="text-white hover:cursor-pointer">Back</Button></Link>
+        <div className="flex flex-row">
+          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <DialogTrigger render={<Button size="lg" className="mx-2">Edit</Button>} />
+              <DialogContent className="sm:max-w-sm">
+                <form onSubmit={editProject}>
+                  <DialogHeader>
+                    <DialogTitle>{project?.name}</DialogTitle>
+                    <DialogDescription>Enter new project name. Your changes will be saved when you click Save button.</DialogDescription>
+                  </DialogHeader>
+                  <FieldGroup>
+                    <Field className="my-4">
+                      <Label>Project name</Label>
+                      <Input placeholder="Project name" value={projectName} onChange={(e) => setProjectName(e.target.value)} />
+                    </Field>
+                  </FieldGroup>
+                  <DialogFooter>
+                    <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                    <Button type="submit">Save</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+          </Dialog>
+
+          <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
+            <DialogTrigger render={<Button size="lg" className="mx-2">Invite +</Button>} />
+            <DialogContent>
+            <form onSubmit={inviteMember}>
+                <DialogHeader>
+                  <DialogTitle>Invite member</DialogTitle>
+                </DialogHeader>
+                <FieldGroup>
+                  <Field className="my-4">
+                      <Label>Email</Label>
+                      <Input placeholder="Enter member email address" onChange={(e) => setMemberEmail(e.target.value)}  />
+                  </Field>
+                </FieldGroup>
+                <DialogFooter>
+                  <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                  <Button type="submit">Submit</Button>
+                </DialogFooter>
+            </form>
+            </DialogContent>
+        </Dialog>  
+
+          <Dialog>
+            <DialogTrigger render={<Button variant="destructive" className="mx-2">Delete</Button>} />
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Delete {project?.name}</DialogTitle>
+                <DialogDescription>This Permanently delete the project and cannot be undone.</DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                <Button variant="destructive" onClick={deleteProject}>Delete project</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
-      <div className="flex-row bg-gray-400 p-2">
-        <Button size="lg" onClick={() => editProjectName('hello world project')} className="m-2">Edit project</Button>
-        <Button size="lg" onClick={() => deleteProject()} className="m-2">Delete project</Button>
-        <Button size="lg" onClick={() => inviteMember('claytoncrockville@gmail.com')} className="m-2">Invite member</Button>
-        <Button size="lg" onClick={() => createTask("login page", "create new login page", "In progress", "a152e53d-2a7d-4bee-bbfe-7387b3e92818")} className="m-2">Create task</Button>
+      <div className="flex justify-between m-4">
+        <p className="font-semibold mt-2 uppercase">{project?.name}</p>
+
+        <Dialog open={isNewTaskOpen} onOpenChange={setIsNewTaskOpen}>
+          <DialogTrigger render={<Button size="lg" className="mx-2">New Task +</Button>} />
+          <DialogContent>
+            <form onSubmit={createTask}>
+              <DialogHeader>
+                <DialogTitle>Create New Task</DialogTitle>
+              </DialogHeader>
+              <FieldGroup>
+                <Field className="mt-2">
+                  <Label>Name</Label>
+                  <Input placeholder="Task name" onChange={(e) => setNewTask((task) => ({...task, name: e.target.value}))} />
+                </Field>
+                <Field>
+                  <Label>Description</Label>
+                  <Input placeholder="Task description" onChange={(e) => setNewTask((task) => ({...task, description: e.target.value}))} />
+                </Field>
+                <Field>
+                  <Label>Status</Label>
+                  <Input placeholder="Task status" onChange={(e) => setNewTask((task) => ({...task, status: e.target.value}))} />
+                </Field>
+                <Field>
+                  <Label>Assign <span className="text-gray-400 text-normal text-sm">(optional)</span></Label>
+                  <Input placeholder="Enter memeber email" onChange={(e) => setNewTask((task) => ({...task, assignedTo: e.target.value}))} />
+                </Field>
+              </FieldGroup>
+              <DialogFooter className="mt-2">
+                <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                <Button type="submit">Submit</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <div className="p-4">
+      <div className="m-4">
         {tasks.map((task) => {
           return (
               <div key={task.id} className="bg-white border p-5 my-5">
@@ -167,8 +301,35 @@ export default function Project({ params }: Route.ComponentProps) {
                 <p>description: {task.description}</p>
                 <p>status: {task.status}</p>
                 <p>Assigned to: {task.accounts?.email}</p>
-                <Button onClick={() => editTask(task.id, "hlelo world", "hello wrold 123", "in progress")}>Edit Task</Button>
-                <Button onClick={() => deleteTask(task.id)}>Delete Task</Button>
+                <Dialog>
+                  <DialogTrigger render={<Button>Edit</Button>} />
+                  <DialogContent>
+                    <form>
+                      <DialogHeader>
+                        <DialogTitle>Edit Task</DialogTitle>
+                      </DialogHeader>
+                      <FieldGroup>
+                        <Field className="mt-2">
+                          <Label>Name</Label>
+                          <Input placeholder="Task name" />
+                        </Field>
+                        <Field>
+                          <Label>Description</Label>
+                          <Input placeholder="Task description" />
+                        </Field>
+                        <Field>
+                          <Label>Status</Label>
+                          <Input placeholder="Task status" />
+                        </Field>
+                      </FieldGroup>
+                      <DialogFooter className="mt-2">
+                        <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                        <Button type="submit">Save</Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+                <Button onClick={() => deleteTask(task.id)}>Delete</Button>
               </div>
             );
         })}
