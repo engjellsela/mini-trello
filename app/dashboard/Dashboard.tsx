@@ -107,30 +107,11 @@ export function Dashboard({user}: DashboardProps) {
 
     return (
         <div className="min-h-screen bg-gray-100">
-            <div className="p-5 bg-black text-white flex justify-between">
-                <p>Dashboard Page</p>
-                <Button onClick={logout} variant="destructive">Log out</Button>
-            </div>
-
-            <div className="flex-row bg-gray-400 p-2">
-                <Dialog>
-                    <DialogTrigger render={<Button size="lg">New project</Button>} />
-                    <DialogContent className="sm:max-w-sm">
-                        <DialogHeader>
-                            <DialogTitle>Project name</DialogTitle>
-                        </DialogHeader>
-                        <FieldGroup>
-                            <Field>
-                                <Label htmlFor="name-1">Name</Label>
-                                <Input name="name" placeholder="Project name" onChange={(e) => setProjectName(e.target.value)} />
-                            </Field>
-                        </FieldGroup>
-                        <DialogFooter>
-                            <DialogClose render={<Button variant="outline">Cancel</Button>} />
-                            <Button type="submit" onClick={createProject}>Submit</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+            <div className="p-5 bg-black text-white">
+                <div className="mx-auto flex max-w-7xl justify-between">
+                    <p className="mt-1">Dashboard Page</p>
+                    <Button onClick={logout} variant="destructive">Log out</Button>
+                </div>
             </div>
 
             <div className="my-5">
@@ -149,8 +130,28 @@ export function Dashboard({user}: DashboardProps) {
                 )}
             </div>
 
-            <div className="m-4">
-                <p className="font-semibold uppercase">your workspace</p>
+            <div className="mx-auto max-w-7xl">
+                <div className="flex justify-between mb-8">
+                    <p className="font-semibold uppercase mt-3">your workspace</p>
+                    <Dialog>
+                        <DialogTrigger render={<Button size="lg">New project +</Button>} />
+                        <DialogContent className="sm:max-w-sm">
+                            <DialogHeader>
+                                <DialogTitle>Project name</DialogTitle>
+                            </DialogHeader>
+                            <FieldGroup>
+                                <Field>
+                                    <Label htmlFor="name-1">Name</Label>
+                                    <Input name="name" placeholder="Project name" onChange={(e) => setProjectName(e.target.value)} />
+                                </Field>
+                            </FieldGroup>
+                            <DialogFooter>
+                                <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                                <Button type="submit" onClick={createProject}>Submit</Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+                </div>
                 {projects?.map(project => {
                     return (
                         <Link to={`/project/${project.id}`}>

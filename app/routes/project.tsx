@@ -33,9 +33,6 @@ type Task = {
   assignedTo: string;
   projectID: string;
   created_at: string;
-  accounts: {
-    email: string;
-  };
 };
 
 type NewTask = {
@@ -53,9 +50,11 @@ export default function Project({ params }: Route.ComponentProps) {
   const [projectName, setProjectName] = useState(project?.name ?? '');
   const [memberEmail, setMemberEmail] = useState('');
   const [newTask, setNewTask] = useState<NewTask>({name: '', description: '', status: '', assignedTo: ''});
+  const [editedTask, setEditedTask] = useState<Task | null>();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isNewTaskOpen, setIsNewTaskOpen] = useState(false);
+  const [isEditTaskOpen, setIsEditTaskOpen] = useState(false);
 
   const navigate = useNavigate();
 
@@ -72,11 +71,10 @@ export default function Project({ params }: Route.ComponentProps) {
     const getTasks = async () => {
       const { data, error } = await supabase
       .from('tasks')
-      .select('*, accounts(email)')
+      .select('*')
       .eq('projectID', params.id)
       if (error) setError(error.message)
       else setTasks(data)
-      
     };
 
     checkProject();
@@ -108,7 +106,7 @@ export default function Project({ params }: Route.ComponentProps) {
     .from('projects')
     .delete()
     .eq('id', project?.id)
-    if (error) console.log(error)
+    if (error) alert(error.message)
     else navigate("/");
   };
 
@@ -154,24 +152,21 @@ export default function Project({ params }: Route.ComponentProps) {
     }
   };
 
-  const editTask = async (id: string, name: string, description: string, status: string) => {
+  const editTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     const { data, error } = await supabase
     .from('tasks')
-    .update({ name: name, description: description, status: status })
-    .eq('id', id)
+    .update({ name: editedTask?.name, description: editedTask?.description, status: editedTask?.status, assignedTo: editedTask?.assignedTo ? editedTask?.assignedTo : null })
+    .eq('id', editedTask?.id)
     .select()
     if (error) { 
       alert(error.message)
       return;
     }
     else {
-      setTasks((currentTasks) =>
-        currentTasks.map((task) =>
-          task.id === id
-            ? { ...task, name, description, status }
-            : task
-        )
-      );
+      setTasks((currentTasks) => currentTasks.map((task) => task.id === editedTask?.id ? data[0] : task));
+      setIsEditTaskOpen(false);
     }
   };
 
@@ -194,8 +189,9 @@ export default function Project({ params }: Route.ComponentProps) {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="p-5 bg-black text-white flex justify-between">
-        <Link to="/"><Button variant="link" className="text-white hover:cursor-pointer">Back</Button></Link>
+      <div className="p-5 bg-black text-white">
+        <div className="mx-auto flex max-w-7xl justify-between">
+        <Link to="/"><Button variant="link" className="text-white hover:cursor-pointer mt-1">Back</Button></Link>
         <div className="flex flex-row">
           <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
             <DialogTrigger render={<Button size="lg" className="mx-2">Edit</Button>} />
@@ -253,10 +249,12 @@ export default function Project({ params }: Route.ComponentProps) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+        </div>
         </div>
       </div>
 
-      <div className="flex justify-between m-4">
+      <div className="flex justify-between m-4 mx-auto max-w-7xl">
         <p className="font-semibold mt-2 uppercase">{project?.name}</p>
 
         <Dialog open={isNewTaskOpen} onOpenChange={setIsNewTaskOpen}>
@@ -281,7 +279,7 @@ export default function Project({ params }: Route.ComponentProps) {
                 </Field>
                 <Field>
                   <Label>Assign <span className="text-gray-400 text-normal text-sm">(optional)</span></Label>
-                  <Input placeholder="Enter memeber email" onChange={(e) => setNewTask((task) => ({...task, assignedTo: e.target.value}))} />
+                  <Input placeholder="Enter member email" onChange={(e) => setNewTask((task) => ({...task, assignedTo: e.target.value}))} />
                 </Field>
               </FieldGroup>
               <DialogFooter className="mt-2">
@@ -293,33 +291,55 @@ export default function Project({ params }: Route.ComponentProps) {
         </Dialog>
       </div>
 
-      <div className="m-4">
+      <div className="m-4 mx-auto max-w-7xl">
         {tasks.map((task) => {
           return (
-              <div key={task.id} className="bg-white border p-5 my-5">
-                <p>{task.name}</p>
-                <p>description: {task.description}</p>
-                <p>status: {task.status}</p>
-                <p>Assigned to: {task.accounts?.email}</p>
-                <Dialog>
-                  <DialogTrigger render={<Button>Edit</Button>} />
+              <div key={task.id} className="bg-white border p-5 my-5 shadow">
+                <div className="flex justify-between">
+                  <p className="text-xl font-medium">{task.name}</p>
+                  <p className="bg-blue-100 text-blue-400 rounded w-fit p-1">{task.status}</p>
+                </div>
+                <p className="mb-2">{task.description}</p>
+                <p className="mb-2">{task.assignedTo ? <p>Assignee: <span className="text-sm text-gray-600 bg-gray-200 p-1 rounded">{task.assignedTo}</span></p> : null}</p>
+                <Dialog open={isEditTaskOpen} onOpenChange={setIsEditTaskOpen}>
+                  <DialogTrigger render={<Button variant="outline" onClick={() => setEditedTask({ ...task })}>Edit</Button>} />
                   <DialogContent>
-                    <form>
+                    <form onSubmit={editTask}>
                       <DialogHeader>
                         <DialogTitle>Edit Task</DialogTitle>
                       </DialogHeader>
                       <FieldGroup>
                         <Field className="mt-2">
                           <Label>Name</Label>
-                          <Input placeholder="Task name" />
+                          <Input
+                            placeholder="Task name"
+                            value={editedTask?.name ?? ''} 
+                            onChange={(e) => setEditedTask((currentTask) => currentTask ? { ...currentTask, name: e.target.value } : null)}
+                          />
                         </Field>
                         <Field>
                           <Label>Description</Label>
-                          <Input placeholder="Task description" />
+                          <Input 
+                            placeholder="Task description" 
+                            value={editedTask?.description ?? ''} 
+                            onChange={(e) => setEditedTask((currentTask) => currentTask ? { ...currentTask, description: e.target.value } : null)}
+                          />
                         </Field>
                         <Field>
                           <Label>Status</Label>
-                          <Input placeholder="Task status" />
+                          <Input 
+                            placeholder="Task status" 
+                            value={editedTask?.status ?? ''} 
+                            onChange={(e) => setEditedTask((currentTask) => currentTask ? { ...currentTask, status: e.target.value } : null)}
+                          />
+                        </Field>
+                        <Field>
+                          <Label>Assign Task</Label>
+                          <Input 
+                            placeholder="Enter member email" 
+                            value={editedTask?.assignedTo ?? ''} 
+                            onChange={(e) => setEditedTask((currentTask) => currentTask ? { ...currentTask, assignedTo: e.target.value } : null)}
+                          />
                         </Field>
                       </FieldGroup>
                       <DialogFooter className="mt-2">
@@ -329,7 +349,20 @@ export default function Project({ params }: Route.ComponentProps) {
                     </form>
                   </DialogContent>
                 </Dialog>
-                <Button onClick={() => deleteTask(task.id)}>Delete</Button>
+
+                <Dialog>
+                  <DialogTrigger render={<Button variant="destructive" className="mx-2">Delete</Button>} />
+                  <DialogContent className="sm:max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>Delete {task?.name} task</DialogTitle>
+                      <DialogDescription>This will permanently delete the task and cannot be undone.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <DialogClose render={<Button variant="outline">Cancel</Button>} />
+                      <Button variant="destructive" onClick={() => deleteTask(task.id)}>Delete task</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             );
         })}
